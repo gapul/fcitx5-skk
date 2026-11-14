@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/enum.h>
@@ -174,6 +175,9 @@ public:
     SkkState *state(InputContext *ic) { return ic->propertyFor(&factory_); }
 
     const auto &dictionaries() { return dictionaries_; }
+    // The text before and after the cursor of the focused input context, for
+    // the dictionaries that convert in context.
+    std::pair<std::string, std::string> surroundingContext();
     auto modeAction() { return modeAction_.get(); }
     auto userRule() { return userRule_.get(); }
     bool constructed() const { return constructed_; }

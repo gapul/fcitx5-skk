@@ -5,6 +5,7 @@
  *
  */
 #include "skk.h"
+#include "contextserv.h"
 #include <fcntl.h>
 #include <algorithm>
 #include <array>
@@ -50,6 +51,7 @@
 #include <libskk/libskk.h>
 
 #define SKK_DEBUG() FCITX_LOGC(::fcitx::skk_logcategory, Debug)
+#define SKK_WARN() FCITX_LOGC(::fcitx::skk_logcategory, Warn)
 
 namespace fcitx {
 
@@ -495,6 +497,7 @@ void SkkEngine::loadDictionary() {
         std::string host;
         std::string port;
         std::string encoding;
+        bool context = false;
         for (const auto &token : tokens) {
             auto equal = token.find('=');
             if (equal == std::string::npos) {
@@ -524,6 +527,8 @@ void SkkEngine::loadDictionary() {
                 port = value;
             } else if (key == "encoding") {
                 encoding = value;
+            } else if (key == "context") {
+                context = value == "true";
             }
         }
 
@@ -586,6 +591,23 @@ void SkkEngine::loadDictionary() {
                 continue;
             }
 
+            // context=true sends the text around the cursor along with each
+            // lookup (contextserv.h). Only azoo-key-skkserv understands that
+            // request, and it always answers in UTF-8.
+            if (context) {
+                if (encoding != "UTF-8") {
+                    SKK_WARN() << "context=true needs encoding=UTF-8: "
+                               << trimmed;
+                    continue;
+                }
+                FcitxSkkContextServ *dict = fcitx_skk_context_serv_new(
+                    host, iPort, [this]() { return surroundingContext(); });
+                SKK_DEBUG() << "Adding context server: " << host << ":"
+                            << iPort;
+                dictionaries_.emplace_back(SKK_DICT(dict));
+                continue;
+            }
+
             SkkSkkServ *dict =
                 skk_skk_serv_new(host.data(), iPort, encoding.data(), nullptr);
             if (dict) {
@@ -595,6 +617,46 @@ void SkkEngine::loadDictionary() {
             }
         }
     }
+}
+
+std::pair<std::string, std::string> SkkEngine::surroundingContext() {
+    // How many characters to send on each side. azoo-key-skkserv keeps at most
+    // 30 of the cursor's line, as azooKey on macOS does.
+    constexpr size_t contextLength = 30;
+
+    auto *ic = instance_->inputContextManager().lastFocusedInputContext();
+    if (!ic || !ic->hasFocus()) {
+        return {};
+    }
+    const auto flags = ic->capabilityFlags();
+    if (!flags.test(CapabilityFlag::SurroundingText) ||
+        flags.test(CapabilityFlag::Password) ||
+        flags.test(CapabilityFlag::Sensitive)) {
+        return {};
+    }
+    const auto &surrounding = ic->surroundingText();
+    if (!surrounding.isValid()) {
+        return {};
+    }
+    const auto &text = surrounding.text();
+    const auto length = utf8::length(text);
+    if (length == utf8::INVALID_LENGTH) {
+        return {};
+    }
+    // With a selection, the context is what lies outside it.
+    const auto begin =
+        std::min<size_t>(std::min(surrounding.cursor(), surrounding.anchor()),
+                         length);
+    const auto end =
+        std::min<size_t>(std::max(surrounding.cursor(), surrounding.anchor()),
+                         length);
+    const auto leftStart = begin > contextLength ? begin - contextLength : 0;
+    const auto rightEnd = std::min(length, end + contextLength);
+    auto byteAt = [&text](size_t chars) {
+        return utf8::ncharByteLength(text.begin(), chars);
+    };
+    return {text.substr(byteAt(leftStart), byteAt(begin) - byteAt(leftStart)),
+            text.substr(byteAt(end), byteAt(rightEnd) - byteAt(end))};
 }
 
 SkkEngine::~SkkEngine() {}
