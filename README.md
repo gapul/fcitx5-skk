@@ -2,6 +2,38 @@
 
 fcitx5-skk is an input method engine for Fcitx5, which uses libskk as its backend.
 
+## このフォークについて
+
+このリポジトリ（`gapul/fcitx5-skk`）は、`fcitx/fcitx5-skk`（GPL-3.0-or-later）の個人用フォークです。`feature/context-server` ブランチは `5.1.11` タグを元にしています。
+
+同じ作者の `gapul/azoo-key-skkserv` が実装している文脈つき辞書要求（opcode `5`）に対応するため、`src/contextserv.cpp` に `FcitxSkkContextServ` という libskk の辞書を追加しています。
+
+### 動作と仕様
+
+- `dictionary_list` の server 辞書の行に `context=true` を付けると `FcitxSkkContextServ` が使われます。
+  ```text
+  type=server,host=127.0.0.1,port=1178,encoding=UTF-8,context=true
+  ```
+- サーバーは UTF-8 で応答する必要があります。`encoding` が `UTF-8` でない `context=true` の行は、警告を出して無視します。
+- フォーカスのある入力欄が `SurroundingText` を提供しており、かつ `Password` でも `Sensitive` でもないときだけ、カーソルの前後それぞれ最大30文字を文脈として送ります。
+- libskk 標準の `SkkServ` と異なり、切れた接続を次の要求でつなぎ直します。また、要求が3秒でタイムアウトした場合は30秒間そのサーバーを使いません。
+- 文脈は `127.0.0.1` のサーバーに送る想定です。入力中の文章の一部がサーバーに送られることに注意してください。
+
+### Nix での使い方
+
+Nix では `pkgs.fcitx5-skk.overrideAttrs` で `src` をこのブランチに差し替えて使用できます。
+
+```nix
+pkgs.fcitx5-skk.overrideAttrs {
+  src = fetchFromGitHub {
+    owner = "gapul";
+    repo = "fcitx5-skk";
+    rev = "feature/context-server";
+    hash = "...";
+  };
+}
+```
+
 ## Requirements:
 
  - libskk
