@@ -38,7 +38,8 @@ G_END_DECLS
  *
  * Lookups use the extended request "5{midasi} {left} {right}\n" of
  * azoo-key-skkserv, where left and right are percent-encoded UTF-8, and the
- * response is the same as for "1". Completion uses the standard "4". Unlike
+ * response is the same as for "1". Okuri-ari readings are not sent and get
+ * no candidates. Completion uses the standard "4". Unlike
  * libskk's SkkServ, a lost connection is opened again on the next request.
  * The server must answer in UTF-8.
  */

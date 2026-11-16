@@ -190,6 +190,15 @@ static SkkCandidate **fcitx_skk_context_serv_lookup(SkkDict *self,
                                                     const gchar *midasi,
                                                     gboolean okuri,
                                                     gint *result_length) {
+    // Okuri-ari readings ("つかt" for 使った) are left to the other dictionaries. The server
+    // converts the bare consonant poorly (束/付か/着か, no 使), and in front of SKK-JISYO
+    // its candidates would lead every conversion with okurigana.
+    if (okuri) {
+        if (result_length) {
+            *result_length = 0;
+        }
+        return g_new0(SkkCandidate *, 1);
+    }
     auto *d = impl(self);
     std::pair<std::string, std::string> context;
     if (d->provider) {
