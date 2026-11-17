@@ -20,6 +20,10 @@ namespace fcitx {
 using SkkContextProvider =
     std::function<std::pair<std::string, std::string>()>;
 
+// Which lookups a context server answers: okuri-nasi readings ("かがく"),
+// okuri-ari ones ("つかt" for 使った), or both. The others get no candidates.
+enum class SkkContextServOkuri { Nasi, Ari, All };
+
 } // namespace fcitx
 
 G_BEGIN_DECLS
@@ -38,13 +42,14 @@ G_END_DECLS
  *
  * Lookups use the extended request "5{midasi} {left} {right}\n" of
  * azoo-key-skkserv, where left and right are percent-encoded UTF-8, and the
- * response is the same as for "1". Okuri-ari readings are not sent and get
- * no candidates. Completion uses the standard "4". Unlike
+ * response is the same as for "1". Readings of the kind okuri excludes are
+ * not sent and get no candidates. Completion uses the standard "4". Unlike
  * libskk's SkkServ, a lost connection is opened again on the next request.
  * The server must answer in UTF-8.
  */
 FcitxSkkContextServ *
 fcitx_skk_context_serv_new(const std::string &host, uint16_t port,
-                           fcitx::SkkContextProvider provider);
+                           fcitx::SkkContextProvider provider,
+                           fcitx::SkkContextServOkuri okuri);
 
 #endif // _FCITX_SKK_CONTEXTSERV_H_

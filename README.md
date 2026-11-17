@@ -14,6 +14,15 @@ fcitx5-skk is an input method engine for Fcitx5, which uses libskk as its backen
   ```text
   type=server,host=127.0.0.1,port=1178,encoding=UTF-8,context=true
   ```
+- `context=true` の行には `okuri=` を指定できます。値は `nasi`（既定）、`ari`、`all` で、その行が答える読みの種類を決めます。`nasi` は送りなし（例: `かがく`）だけ、`ari` は送りあり（例: 「使った」の `つかt`）だけ、`all` は両方に答えます。答えない種類の読みはサーバーに送らず、候補なしを返します。
+  - 既定が `nasi` なのは、サーバー（`azoo-key-skkserv`）が送りありの読みを子音だけから変換するのが苦手で（`つかt` で `束`/`付か`/`着か` を返し、`使` を返さない）、他の辞書より前に置くと送りありの変換の先頭がおかしくなるためです。
+  - おすすめの `dictionary_list` は、先頭に `context=true`（`okuri=nasi`）の行、次にユーザー辞書と `SKK-JISYO` などのファイル辞書、最後に同じサーバーの `context=true,okuri=ari` の行を置く構成です。こうすると、文脈つきの順番が送りなしの変換の先頭に来て、送りありはファイル辞書の候補が先になり、ファイル辞書にない読み（例: `IreTe` の `いれt`）ではサーバーの候補が出ます。
+    ```text
+    type=server,host=127.0.0.1,port=1178,encoding=UTF-8,context=true
+    type=file,file=$FCITX_CONFIG_DIR/skk/user.dict,mode=readwrite
+    type=file,file=/path/to/SKK-JISYO.L,mode=readonly
+    type=server,host=127.0.0.1,port=1178,encoding=UTF-8,context=true,okuri=ari
+    ```
 - サーバーは UTF-8 で応答する必要があります。`encoding` が `UTF-8` でない `context=true` の行は、警告を出して無視します。
 - フォーカスのある入力欄が `SurroundingText` を提供しており、かつ `Password` でも `Sensitive` でもないときだけ、カーソルの前後それぞれ最大30文字を文脈として送ります。
 - libskk 標準の `SkkServ` と異なり、切れた接続を次の要求でつなぎ直します。また、要求が3秒でタイムアウトした場合は30秒間そのサーバーを使いません。

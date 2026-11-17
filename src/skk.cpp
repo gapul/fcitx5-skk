@@ -498,6 +498,7 @@ void SkkEngine::loadDictionary() {
         std::string port;
         std::string encoding;
         bool context = false;
+        auto okuri = SkkContextServOkuri::Nasi;
         for (const auto &token : tokens) {
             auto equal = token.find('=');
             if (equal == std::string::npos) {
@@ -529,6 +530,12 @@ void SkkEngine::loadDictionary() {
                 encoding = value;
             } else if (key == "context") {
                 context = value == "true";
+            } else if (key == "okuri") {
+                if (value == "ari") {
+                    okuri = SkkContextServOkuri::Ari;
+                } else if (value == "all") {
+                    okuri = SkkContextServOkuri::All;
+                }
             }
         }
 
@@ -593,7 +600,12 @@ void SkkEngine::loadDictionary() {
 
             // context=true sends the text around the cursor along with each
             // lookup (contextserv.h). Only azoo-key-skkserv understands that
-            // request, and it always answers in UTF-8.
+            // request, and it always answers in UTF-8. okuri= picks the
+            // readings it answers: nasi (the default) leaves okuri-ari ones,
+            // which the server converts poorly from the bare consonant (つかt:
+            // 束/付か/着か, no 使), to the other dictionaries, so it can sit in
+            // front of them; a second line with okuri=ari behind them gives
+            // the server's okuri-ari candidates where they lack the reading.
             if (context) {
                 if (encoding != "UTF-8") {
                     SKK_WARN() << "context=true needs encoding=UTF-8: "
@@ -601,7 +613,8 @@ void SkkEngine::loadDictionary() {
                     continue;
                 }
                 FcitxSkkContextServ *dict = fcitx_skk_context_serv_new(
-                    host, iPort, [this]() { return surroundingContext(); });
+                    host, iPort, [this]() { return surroundingContext(); },
+                    okuri);
                 SKK_DEBUG() << "Adding context server: " << host << ":"
                             << iPort;
                 dictionaries_.emplace_back(SKK_DICT(dict));

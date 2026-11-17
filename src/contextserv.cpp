@@ -67,6 +67,7 @@ struct ContextServImpl {
     std::string host;
     std::string port;
     fcitx::SkkContextProvider provider;
+    fcitx::SkkContextServOkuri okuri = fcitx::SkkContextServOkuri::Nasi;
     int fd = -1;
     bool timedOut = false;
     std::chrono::steady_clock::time_point suspendedUntil;
@@ -190,16 +191,14 @@ static SkkCandidate **fcitx_skk_context_serv_lookup(SkkDict *self,
                                                     const gchar *midasi,
                                                     gboolean okuri,
                                                     gint *result_length) {
-    // Okuri-ari readings ("つかt" for 使った) are left to the other dictionaries. The server
-    // converts the bare consonant poorly (束/付か/着か, no 使), and in front of SKK-JISYO
-    // its candidates would lead every conversion with okurigana.
-    if (okuri) {
+    auto *d = impl(self);
+    if (d->okuri != fcitx::SkkContextServOkuri::All &&
+        (d->okuri == fcitx::SkkContextServOkuri::Ari) != bool(okuri)) {
         if (result_length) {
             *result_length = 0;
         }
         return g_new0(SkkCandidate *, 1);
     }
-    auto *d = impl(self);
     std::pair<std::string, std::string> context;
     if (d->provider) {
         context = d->provider();
@@ -274,11 +273,13 @@ static void fcitx_skk_context_serv_init(FcitxSkkContextServ *self) {
 
 FcitxSkkContextServ *
 fcitx_skk_context_serv_new(const std::string &host, uint16_t port,
-                           fcitx::SkkContextProvider provider) {
+                           fcitx::SkkContextProvider provider,
+                           fcitx::SkkContextServOkuri okuri) {
     auto *self = static_cast<FcitxSkkContextServ *>(
         g_object_new(FCITX_SKK_TYPE_CONTEXT_SERV, nullptr));
     self->impl->host = host;
     self->impl->port = std::to_string(port);
     self->impl->provider = std::move(provider);
+    self->impl->okuri = okuri;
     return self;
 }
